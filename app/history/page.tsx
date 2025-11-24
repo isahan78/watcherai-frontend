@@ -1,15 +1,30 @@
+'use client';
+
+import { useEffect, useState } from 'react';
 import { getHistory } from '@/lib/api';
 import HistoryCard from '@/components/HistoryCard';
 import Link from 'next/link';
+import LoadingSpinner from '@/components/LoadingSpinner';
+import { HistoryItem } from '@/lib/types';
 
-export default async function HistoryPage() {
-  let history: Awaited<ReturnType<typeof getHistory>> = [];
+export default function HistoryPage() {
+  const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  try {
-    history = await getHistory(20);
-  } catch {
-    // History fetch failed, show empty state
-  }
+  useEffect(() => {
+    async function fetchHistory() {
+      try {
+        const data = await getHistory(20);
+        setHistory(data);
+      } catch {
+        setError(true);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchHistory();
+  }, []);
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8">
@@ -26,7 +41,24 @@ export default async function HistoryPage() {
         </Link>
       </div>
 
-      {history.length === 0 ? (
+      {loading ? (
+        <div className="flex justify-center py-16">
+          <LoadingSpinner size="lg" />
+        </div>
+      ) : error ? (
+        <div className="text-center py-16">
+          <p className="text-gray-500 mb-4">Unable to load history</p>
+          <p className="text-sm text-gray-400 mb-4">
+            Make sure the backend API is running
+          </p>
+          <Link
+            href="/analyze"
+            className="text-primary hover:underline"
+          >
+            Run a new analysis
+          </Link>
+        </div>
+      ) : history.length === 0 ? (
         <div className="text-center py-16">
           <p className="text-gray-500 mb-4">No analyses yet</p>
           <Link
