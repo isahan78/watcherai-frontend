@@ -9,8 +9,8 @@ import {
   FlowConnection,
 } from './types';
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL
-  || 'https://watcherai-backend.onrender.com';
+// Use local API proxy routes to bypass CORS
+const API_BASE = '/api';
 
 class APIError extends Error {
   constructor(public status: number, message: string) {
@@ -23,7 +23,7 @@ async function fetchAPI<T>(
   endpoint: string,
   options?: RequestInit
 ): Promise<T> {
-  const response = await fetch(`${BACKEND_URL}${endpoint}`, {
+  const response = await fetch(`${API_BASE}${endpoint}`, {
     headers: {
       'Content-Type': 'application/json',
       ...options?.headers,
@@ -170,7 +170,7 @@ export async function analyze(
     output: request.output,
   };
 
-  const data = await fetchAPI<BackendAnalysisResponse>('/api/analyze', {
+  const data = await fetchAPI<BackendAnalysisResponse>('/analyze', {
     method: 'POST',
     body: JSON.stringify(backendRequest),
   });
