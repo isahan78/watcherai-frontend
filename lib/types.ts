@@ -1,50 +1,46 @@
 // Request types
 export interface AnalysisRequest {
   prompt: string;
-  response: string;  // Backend expects "response" not "output"
+  output: string;
 }
 
-// Backend API Response types
+// Backend API Response types (actual structure from API)
 export interface BackendAnalysisResponse {
-  request_id: string;
   summary: {
     confidence: number;
+    risk_level: 'low' | 'medium' | 'high';
+    pattern_type: string;
     complexity: number;
-    total_components: number;
-    primary_pattern: string;
   };
-  components: {
-    layer: number;
-    head: number;
+  explanation: {
+    short: string;
+    detailed: string;
+    reasoning_type: string;
+  };
+  key_components: {
+    id: string;
     importance: number;
-    role: string;
+    label: string;
     description: string;
   }[];
   information_flow: {
-    connections: {
-      from_layer: number;
-      from_head: number;
-      to_layer: number;
-      to_head: number;
-      weight: number;
+    summary: string;
+    edges: {
+      from: string;
+      to: string;
+      strength: 'weak' | 'medium' | 'strong';
     }[];
-    description: string;
   };
   risk_assessment: {
     level: 'low' | 'medium' | 'high';
-    concerns: {
-      type: 'safe' | 'warning' | 'danger';
-      message: string;
-    }[];
-  };
-  explanation: {
-    summary: string;
-    details: string;
+    factors: string[];
+    recommendation: string;
   };
   metadata: {
-    model: string;
-    timestamp: string;
-    processing_time_ms: number;
+    analysis_time_ms: number;
+    model_analyzed: string;
+    num_heads_analyzed: number;
+    num_edges: number;
   };
 }
 
@@ -58,9 +54,9 @@ export interface HeadComponent {
 }
 
 export interface FlowConnection {
-  from: string;         // e.g., "L6H15"
-  to: string;           // e.g., "L8H15"
-  weight: number;       // connection strength
+  from: string;
+  to: string;
+  weight: number;
 }
 
 export interface AnalysisResult {
@@ -71,10 +67,10 @@ export interface AnalysisResult {
 
   // Top-level metrics
   metrics: {
-    confidence: number;      // 0-1, displayed as percentage
+    confidence: number;
     riskLevel: 'low' | 'medium' | 'high';
     keyHeadsCount: number;
-    complexity: number;      // 0-1, displayed as percentage
+    complexity: number;
   };
 
   // Human-readable explanation
@@ -89,11 +85,18 @@ export interface AnalysisResult {
     description: string;
   };
 
-  // Potential concerns / deception check
+  // Potential concerns / risk factors
   concerns: {
     type: 'safe' | 'warning' | 'danger';
     message: string;
   }[];
+
+  // Additional metadata
+  metadata: {
+    analysisTimeMs: number;
+    modelAnalyzed: string;
+    recommendation: string;
+  };
 }
 
 // History types

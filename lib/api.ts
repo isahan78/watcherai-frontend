@@ -43,47 +43,98 @@ async function fetchAPI<T>(
 }
 
 /**
+ * Parse head ID like "L1H5" into layer and head numbers
+ */
+function parseHeadId(id: string): { layer: number; head: number } {
+  const match = id.match(/L(\d+)H(\d+|None)/);
+  if (match) {
+    return {
+      layer: parseInt(match[1], 10),
+      head: match[2] === 'None' ? 0 : parseInt(match[2], 10),
+    };
+  }
+  return { layer: 0, head: 0 };
+}
+
+/**
+ * Convert strength to numeric weight
+ */
+function strengthToWeight(strength: 'weak' | 'medium' | 'strong'): number {
+  switch (strength) {
+    case 'strong': return 0.9;
+    case 'medium': return 0.6;
+    case 'weak': return 0.3;
+    default: return 0.3;
+  }
+}
+
+/**
  * Transform backend response to frontend AnalysisResult
  */
 function transformAnalysisResponse(
   data: BackendAnalysisResponse,
+  id: string,
   prompt: string,
   output: string
 ): AnalysisResult {
   // Transform components to HeadComponent format
-  const keyComponents: HeadComponent[] = data.components.map((comp) => ({
-    layer: comp.layer,
-    head: comp.head,
-    id: `L${comp.layer}H${comp.head}`,
-    importance: comp.importance,
-    label: comp.role || comp.description,
+  const keyComponents: HeadComponent[] = data.key_components.map((comp) => {
+    const { layer, head } = parseHeadId(comp.id);
+    return {
+      layer,
+      head,
+      id: comp.id,
+      importance: comp.importance,
+      label: comp.label,
+    };
+  });
+
+  // Transform edges to FlowConnection format
+  const connections: FlowConnection[] = data.information_flow.edges.map((edge) => ({
+    from: edge.from,
+    to: edge.to,
+    weight: strengthToWeight(edge.strength),
   }));
 
-  // Transform connections to FlowConnection format
-  const connections: FlowConnection[] = data.information_flow.connections.map((conn) => ({
-    from: `L${conn.from_layer}H${conn.from_head}`,
-    to: `L${conn.to_layer}H${conn.to_head}`,
-    weight: conn.weight,
+  // Transform risk factors to concerns
+  const concerns = data.risk_assessment.factors.map((factor) => ({
+    type: factor.includes('moderate') ? 'warning' as const :
+          factor.includes('high') || factor.includes('severe') ? 'danger' as const :
+          'safe' as const,
+    message: factor.replace(/^(low_|moderate_|high_)/, '').replace(/_/g, ' '),
   }));
+
+  // Add safe message if no concerns
+  if (concerns.length === 0) {
+    concerns.push({
+      type: 'safe' as const,
+      message: 'No significant concerns detected',
+    });
+  }
 
   return {
-    id: data.request_id,
-    timestamp: data.metadata.timestamp,
+    id,
+    timestamp: new Date().toISOString(),
     prompt,
     output,
     metrics: {
       confidence: data.summary.confidence,
-      riskLevel: data.risk_assessment.level,
-      keyHeadsCount: data.summary.total_components,
+      riskLevel: data.summary.risk_level,
+      keyHeadsCount: data.metadata.num_heads_analyzed,
       complexity: data.summary.complexity,
     },
-    explanation: data.explanation.summary + (data.explanation.details ? `\n\n${data.explanation.details}` : ''),
+    explanation: `${data.explanation.short}\n\n${data.explanation.detailed}`,
     keyComponents,
     informationFlow: {
       connections,
-      description: data.information_flow.description,
+      description: data.information_flow.summary,
     },
-    concerns: data.risk_assessment.concerns,
+    concerns,
+    metadata: {
+      analysisTimeMs: data.metadata.analysis_time_ms,
+      modelAnalyzed: data.metadata.model_analyzed,
+      recommendation: data.risk_assessment.recommendation,
+    },
   };
 }
 
@@ -102,15 +153,21 @@ function transformHistoryResponse(data: BackendHistoryResponse): HistoryItem[] {
 }
 
 /**
- * Submit prompt and response for analysis
+ * Generate a unique ID for the analysis
+ */
+function generateId(): string {
+  return `analysis_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+}
+
+/**
+ * Submit prompt and output for analysis
  */
 export async function analyze(
   request: { prompt: string; output: string }
 ): Promise<{ id: string }> {
-  // Backend expects "response" not "output"
   const backendRequest: AnalysisRequest = {
     prompt: request.prompt,
-    response: request.output,
+    output: request.output,
   };
 
   const data = await fetchAPI<BackendAnalysisResponse>('/api/analyze', {
@@ -118,34 +175,32 @@ export async function analyze(
     body: JSON.stringify(backendRequest),
   });
 
+  // Generate an ID since backend doesn't return one
+  const id = generateId();
+
   // Store the request data in sessionStorage for the results page
   if (typeof window !== 'undefined') {
-    sessionStorage.setItem(`analysis_${data.request_id}`, JSON.stringify({
-      prompt: request.prompt,
-      output: request.output,
-      response: data,
-    }));
+    const result = transformAnalysisResponse(data, id, request.prompt, request.output);
+    sessionStorage.setItem(`analysis_${id}`, JSON.stringify(result));
   }
 
-  return { id: data.request_id };
+  return { id };
 }
 
 /**
  * Get analysis results by ID
  */
 export async function getAnalysis(id: string): Promise<AnalysisResult> {
-  // First try to get from sessionStorage (for immediate redirect after analysis)
+  // Get from sessionStorage (analysis results are cached after submission)
   if (typeof window !== 'undefined') {
     const cached = sessionStorage.getItem(`analysis_${id}`);
     if (cached) {
-      const { prompt, output, response } = JSON.parse(cached);
-      return transformAnalysisResponse(response, prompt, output);
+      return JSON.parse(cached);
     }
   }
 
-  // If not in cache, fetch from backend (for history items)
-  const data = await fetchAPI<BackendAnalysisResponse>(`/api/analysis/${id}`);
-  return transformAnalysisResponse(data, '', '');
+  // If not in cache, throw error (backend doesn't persist results by ID)
+  throw new Error('Analysis not found. Results are only available immediately after analysis.');
 }
 
 /**
