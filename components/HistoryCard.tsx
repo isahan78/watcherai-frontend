@@ -1,12 +1,20 @@
 import Link from 'next/link';
 import { HistoryItem } from '@/lib/types';
-import SafetyBadge from './SafetyBadge';
+import clsx from 'clsx';
 
 interface HistoryCardProps {
   item: HistoryItem;
 }
 
+const riskConfig = {
+  low: { bg: 'bg-success/10', text: 'text-success', label: 'Low Risk' },
+  medium: { bg: 'bg-warning/10', text: 'text-warning', label: 'Medium Risk' },
+  high: { bg: 'bg-danger/10', text: 'text-danger', label: 'High Risk' },
+};
+
 export default function HistoryCard({ item }: HistoryCardProps) {
+  const risk = riskConfig[item.riskLevel];
+
   return (
     <Link
       href={`/results/${item.id}`}
@@ -25,14 +33,28 @@ export default function HistoryCard({ item }: HistoryCardProps) {
             {item.outputPreview}
           </p>
 
-          {/* Timestamp */}
-          <p className="text-gray-400 text-xs mt-2">
-            {new Date(item.timestamp).toLocaleString()}
-          </p>
+          {/* Timestamp and confidence */}
+          <div className="flex items-center gap-3 mt-2">
+            <p className="text-gray-400 text-xs">
+              {new Date(item.timestamp).toLocaleString()}
+            </p>
+            <span className="text-gray-300">|</span>
+            <p className="text-xs text-gray-500">
+              {Math.round(item.confidence * 100)}% confidence
+            </p>
+          </div>
         </div>
 
-        {/* Safety badge */}
-        <SafetyBadge label={item.safetyLabel} score={1} />
+        {/* Risk badge */}
+        <div
+          className={clsx(
+            'px-3 py-1 rounded-full text-sm font-medium flex-shrink-0',
+            risk.bg,
+            risk.text
+          )}
+        >
+          {risk.label}
+        </div>
       </div>
     </Link>
   );

@@ -4,40 +4,97 @@ export interface AnalysisRequest {
   model?: string;
 }
 
-export interface TokenInfluence {
-  token: string;
-  influence: number;  // 0-1 scale
-  position: number;
+// Circuit Discovery types
+export interface CircuitDiscoveryRequest {
+  clean_input: string;
+  corrupted_input: string;
+  task_description?: string;
+  max_heads?: number;
+  include_mlp?: boolean;
 }
 
+export interface HeadComponent {
+  layer: number;
+  head: number;
+  id: string;           // e.g., "L6H15"
+  importance: number;   // 0-1 scale
+  label: string;        // e.g., "Location encoder"
+}
+
+export interface FlowConnection {
+  from: string;         // e.g., "L6H15"
+  to: string;           // e.g., "L8H15"
+  weight: number;       // connection strength
+}
+
+// Deception check types
+export interface DeceptionCheckRequest {
+  prompt: string;
+  response: string;
+}
+
+export interface DeceptionResult {
+  hasDeceptionSignals: boolean;
+  confidence: number;
+  concerns: {
+    type: 'safe' | 'warning' | 'danger';
+    message: string;
+  }[];
+}
+
+// Main analysis result
 export interface AnalysisResult {
   id: string;
   timestamp: string;
   prompt: string;
   output: string;
 
-  // Summary
-  summary: string;
-  confidence: number;  // 0-1
+  // Top-level metrics
+  metrics: {
+    confidence: number;      // 0-1, displayed as percentage
+    riskLevel: 'low' | 'medium' | 'high';
+    keyHeadsCount: number;
+    complexity: number;      // 0-1, displayed as percentage
+  };
 
-  // Safety assessment
-  safety: {
-    score: number;     // 0-1, higher = safer
+  // Human-readable explanation
+  explanation: string;
+
+  // Key components (attention heads)
+  keyComponents: HeadComponent[];
+
+  // Information flow between components
+  informationFlow: {
+    connections: FlowConnection[];
+    description: string;
+  };
+
+  // Potential concerns / deception check
+  concerns: {
+    type: 'safe' | 'warning' | 'danger';
+    message: string;
+  }[];
+
+  // Legacy fields for backward compatibility
+  summary?: string;
+  confidence?: number;
+  safety?: {
+    score: number;
     label: 'safe' | 'caution' | 'warning';
     concerns: string[];
   };
-
-  // Token influence
-  tokenInfluence: TokenInfluence[];
-
-  // Deeper insights
-  insights: {
+  tokenInfluence?: TokenInfluence[];
+  insights?: {
     title: string;
     description: string;
   }[];
+  keyFactors?: string[];
+}
 
-  // Key attention patterns
-  keyFactors: string[];
+export interface TokenInfluence {
+  token: string;
+  influence: number;
+  position: number;
 }
 
 export interface HistoryItem {
@@ -45,5 +102,6 @@ export interface HistoryItem {
   timestamp: string;
   promptPreview: string;
   outputPreview: string;
-  safetyLabel: 'safe' | 'caution' | 'warning';
+  riskLevel: 'low' | 'medium' | 'high';
+  confidence: number;
 }

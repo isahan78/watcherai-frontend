@@ -46,7 +46,7 @@ export default function InputForm() {
           id="prompt"
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
-          placeholder="Enter the prompt you gave to the AI..."
+          placeholder="Where is the Eiffel Tower located?"
           rows={3}
           className="w-full px-4 py-3 border border-gray-300 rounded-lg
                      focus:ring-2 focus:ring-primary/50 focus:border-primary
@@ -67,7 +67,7 @@ export default function InputForm() {
           id="output"
           value={output}
           onChange={(e) => setOutput(e.target.value)}
-          placeholder="Paste the AI's response here..."
+          placeholder="The Eiffel Tower is located in Paris, France."
           rows={5}
           className="w-full px-4 py-3 border border-gray-300 rounded-lg
                      focus:ring-2 focus:ring-primary/50 focus:border-primary
@@ -97,7 +97,10 @@ export default function InputForm() {
             Analyzing...
           </>
         ) : (
-          'Explain This Output'
+          <>
+            <span>🔍</span>
+            Analyze Response
+          </>
         )}
       </button>
     </form>

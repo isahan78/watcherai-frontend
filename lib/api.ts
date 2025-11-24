@@ -1,4 +1,11 @@
-import { AnalysisRequest, AnalysisResult, HistoryItem } from './types';
+import {
+  AnalysisRequest,
+  AnalysisResult,
+  HistoryItem,
+  CircuitDiscoveryRequest,
+  DeceptionCheckRequest,
+  DeceptionResult,
+} from './types';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -65,4 +72,31 @@ export async function getHistory(
  */
 export async function checkHealth(): Promise<{ status: string }> {
   return fetchAPI('/health');
+}
+
+/**
+ * Discover circuit - find key attention heads
+ */
+export async function discoverCircuit(
+  request: CircuitDiscoveryRequest
+): Promise<{
+  heads: { layer: number; head: number; importance: number }[];
+  connections: { from: string; to: string; weight: number }[];
+}> {
+  return fetchAPI('/discover-circuit', {
+    method: 'POST',
+    body: JSON.stringify(request),
+  });
+}
+
+/**
+ * Quick deception check
+ */
+export async function checkDeception(
+  request: DeceptionCheckRequest
+): Promise<DeceptionResult> {
+  return fetchAPI('/deception/quick-check', {
+    method: 'POST',
+    body: JSON.stringify(request),
+  });
 }
