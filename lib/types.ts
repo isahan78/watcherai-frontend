@@ -1,18 +1,54 @@
+// Request types
 export interface AnalysisRequest {
   prompt: string;
-  output: string;
-  model?: string;
+  response: string;  // Backend expects "response" not "output"
 }
 
-// Circuit Discovery types
-export interface CircuitDiscoveryRequest {
-  clean_input: string;
-  corrupted_input: string;
-  task_description?: string;
-  max_heads?: number;
-  include_mlp?: boolean;
+// Backend API Response types
+export interface BackendAnalysisResponse {
+  request_id: string;
+  summary: {
+    confidence: number;
+    complexity: number;
+    total_components: number;
+    primary_pattern: string;
+  };
+  components: {
+    layer: number;
+    head: number;
+    importance: number;
+    role: string;
+    description: string;
+  }[];
+  information_flow: {
+    connections: {
+      from_layer: number;
+      from_head: number;
+      to_layer: number;
+      to_head: number;
+      weight: number;
+    }[];
+    description: string;
+  };
+  risk_assessment: {
+    level: 'low' | 'medium' | 'high';
+    concerns: {
+      type: 'safe' | 'warning' | 'danger';
+      message: string;
+    }[];
+  };
+  explanation: {
+    summary: string;
+    details: string;
+  };
+  metadata: {
+    model: string;
+    timestamp: string;
+    processing_time_ms: number;
+  };
 }
 
+// Frontend types (transformed from backend)
 export interface HeadComponent {
   layer: number;
   head: number;
@@ -27,22 +63,6 @@ export interface FlowConnection {
   weight: number;       // connection strength
 }
 
-// Deception check types
-export interface DeceptionCheckRequest {
-  prompt: string;
-  response: string;
-}
-
-export interface DeceptionResult {
-  hasDeceptionSignals: boolean;
-  confidence: number;
-  concerns: {
-    type: 'safe' | 'warning' | 'danger';
-    message: string;
-  }[];
-}
-
-// Main analysis result
 export interface AnalysisResult {
   id: string;
   timestamp: string;
@@ -74,27 +94,21 @@ export interface AnalysisResult {
     type: 'safe' | 'warning' | 'danger';
     message: string;
   }[];
-
-  // Legacy fields for backward compatibility
-  summary?: string;
-  confidence?: number;
-  safety?: {
-    score: number;
-    label: 'safe' | 'caution' | 'warning';
-    concerns: string[];
-  };
-  tokenInfluence?: TokenInfluence[];
-  insights?: {
-    title: string;
-    description: string;
-  }[];
-  keyFactors?: string[];
 }
 
-export interface TokenInfluence {
-  token: string;
-  influence: number;
-  position: number;
+// History types
+export interface BackendHistoryResponse {
+  items: {
+    request_id: string;
+    prompt: string;
+    response: string;
+    timestamp: string;
+    risk_level: 'low' | 'medium' | 'high';
+    confidence: number;
+  }[];
+  total: number;
+  limit: number;
+  offset: number;
 }
 
 export interface HistoryItem {
@@ -104,4 +118,11 @@ export interface HistoryItem {
   outputPreview: string;
   riskLevel: 'low' | 'medium' | 'high';
   confidence: number;
+}
+
+// Health check
+export interface HealthResponse {
+  status: string;
+  glassbox_connected: boolean;
+  database_connected: boolean;
 }
